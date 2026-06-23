@@ -39,13 +39,15 @@ FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-
 
 _client = None
 _client_checked = False
+_working_model = None
 
 
 def _get_client():
     """
-    Lazily configure the Gemini client. Returns None if no API key is set
-    or the SDK isn't installed -- callers must handle the None case by
-    using their rule-based fallback.
+    Lazily create the Gemini client (new unified `google-genai` SDK -- the
+    older `google-generativeai` package is deprecated). Returns None if no
+    API key is set or the SDK isn't installed -- callers must handle the
+    None case by using their rule-based fallback.
     """
     global _client, _client_checked
     if _client_checked:
@@ -56,9 +58,8 @@ def _get_client():
     if not api_key:
         return None
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        _client = genai.GenerativeModel(MODEL_NAME)
+        from google import genai
+        _client = genai.Client(api_key=api_key)
     except Exception:
         _client = None
     return _client
@@ -69,32 +70,38 @@ def is_ai_enabled() -> bool:
 
 
 def _generate(prompt: str, max_tokens: int = 500) -> str | None:
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
+    client = _get_client()
+    if client is None:
         return None
+
     try:
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
+        from google.genai import types
     except Exception:
         return None
 
-    global _client, _client_checked
-    models_to_try = [_client] if _client else []
-    models_to_try += [m for m in FALLBACK_MODELS]
+    global _working_model
+    models_to_try = [_working_model] if _working_model else []
+    models_to_try += [m for m in FALLBACK_MODELS if m != _working_model]
 
-    for model_ref in models_to_try:
+    for model_name in models_to_try:
         try:
-            model = model_ref if not isinstance(model_ref, str) else genai.GenerativeModel(model_ref)
-            response = model.generate_content(
-                prompt,
-                generation_config={"max_output_tokens": max_tokens, "temperature": 0.4},
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    temperature=0.4,
+                    # Gemini 2.5+ models think by default, and those thinking
+                    # tokens are deducted from max_output_tokens -- causing
+                    # responses to truncate mid-sentence. We don't need
+                    # chain-of-thought for these short, factual prompts, so
+                    # we disable it to keep the full budget for visible text.
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
             )
             text = (response.text or "").strip()
             if text:
-                # Remember the model that worked so we don't re-try failed ones every call
-                if isinstance(model_ref, str):
-                    _client = model
-                    _client_checked = True
+                _working_model = model_name  # remember what worked
                 return text
         except Exception:
             continue
@@ -114,7 +121,7 @@ Experience: {' '.join(candidate.experience[:6])}
 Projects: {' '.join(candidate.projects[:4])}
 Education: {' '.join(candidate.education)}
 """
-    result = _generate(prompt, max_tokens=200)
+    result = _generate(prompt, max_tokens=350)
     if result:
         return result
 
@@ -142,7 +149,7 @@ Missing Skills: {', '.join(match_result.missing_skills)}
 Strengths: {'; '.join(match_result.strengths)}
 Weaknesses: {'; '.join(match_result.weaknesses)}
 """
-    result = _generate(prompt, max_tokens=150)
+    result = _generate(prompt, max_tokens=250)
     if result:
         return result
 
@@ -171,7 +178,7 @@ Job required skills: {', '.join(job.required_skills)}
 
 Return ONLY a numbered list of {n} questions, nothing else.
 """
-    result = _generate(prompt, max_tokens=400)
+    result = _generate(prompt, max_tokens=550)
     if result:
         questions = [line.strip(" -.\t") for line in result.split("\n") if line.strip()]
         # strip leading numbering like "1." if present
@@ -203,7 +210,7 @@ Candidate skills: {', '.join(candidate.skills)}
 Required skills for job: {', '.join(job.required_skills)}
 Missing skills: {', '.join(missing)}
 """
-    result = _generate(prompt, max_tokens=200)
+    result = _generate(prompt, max_tokens=350)
     if result:
         return result
 
@@ -233,7 +240,7 @@ Years of experience stated explicitly: {candidate.years_of_experience}
 
 Return ONLY a numbered list of 3 suggestions.
 """
-    result = _generate(prompt, max_tokens=250)
+    result = _generate(prompt, max_tokens=400)
     if result:
         lines = [l.strip(" -.\t") for l in result.split("\n") if l.strip()]
         return lines[:3]
@@ -274,7 +281,7 @@ QUESTION: {question}
 
 Answer concisely and reference candidate names directly.
 """
-    result = _generate(prompt, max_tokens=300)
+    result = _generate(prompt, max_tokens=700)
     if result:
         return result
 
