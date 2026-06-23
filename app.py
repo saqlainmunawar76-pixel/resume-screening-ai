@@ -547,7 +547,7 @@ with tabs[8]:
             for c in st.session_state.candidates:
                 score_str = f", match score: {score_lookup[c.file_name]}%" if c.file_name in score_lookup else ""
                 context_lines.append(
-                    f"- {c.name}: {c.years_of_experience} yrs exp, skills: {', '.join(c.skills[:10])}{score_str}"
+                    f"- {c.name}: {c.years_of_experience} yrs exp, skills: {', '.join(c.skills)}{score_str}"
                 )
             context = "\n".join(context_lines)
 
