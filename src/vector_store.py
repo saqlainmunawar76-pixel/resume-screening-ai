@@ -62,13 +62,32 @@ class CandidateVectorStore:
         """
         (Re)builds the vector index for the given list of Candidate objects.
         Call this whenever a new batch of resumes is processed.
+
+        Note: this always rebuilds the collection from scratch rather than
+        incrementally adding to it. Reason: the TF-IDF vectorizer is refit on
+        whatever candidate list is passed in, so its output dimensionality
+        depends on the size of that list. ChromaDB requires every embedding
+        in a collection to have the *same* dimensionality, so mixing vectors
+        fit on different-sized batches (e.g. 1 resume one time, 5 resumes
+        another) would raise an InvalidArgumentError. Since the app always
+        calls this with the full current candidate list (not incrementally),
+        a full rebuild is both correct and simple.
         """
         if not candidates:
             return
 
+        self.reset()
         texts = [c.raw_text for c in candidates]
-        self._fit_vectorizer(texts)
-        vectors = self._vectorizer.transform(texts).toarray().tolist()
+
+        try:
+            self._fit_vectorizer(texts)
+            vectors = self._vectorizer.transform(texts).toarray().tolist()
+        except ValueError:
+            # E.g. "empty vocabulary" if resume text is too short/has only
+            # stopwords. Vector search is a bonus feature -- skip indexing
+            # rather than crashing the whole app.
+            self._vectorizer = None
+            return
 
         ids = [c.file_name for c in candidates]
         metadatas = [
@@ -81,7 +100,6 @@ class CandidateVectorStore:
             for c in candidates
         ]
 
-        # Chroma's `add` errors on duplicate ids -- use upsert for idempotency
         self.collection.upsert(
             ids=ids,
             embeddings=vectors,

@@ -116,6 +116,15 @@ def score_badge(score: float) -> str:
     return f'<span class="score-badge" style="background:{score_color(score)}">{score:.1f}%</span>'
 
 
+def safe_index_candidates(candidates: list) -> None:
+    """Reindex the vector store, but never let a vector-search hiccup crash
+    the whole dashboard -- it's a bonus feature, not core functionality."""
+    try:
+        st.session_state.vector_store.index_candidates(candidates)
+    except Exception as e:
+        st.toast(f"⚠️ Vector search index couldn't be rebuilt ({type(e).__name__}). Other features are unaffected.", icon="⚠️")
+
+
 # ---------------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------------
@@ -218,7 +227,7 @@ with tabs[0]:
             new_candidates.append(candidate)
             progress.progress((i + 1) / len(uploaded_files), text=f"Processed {file.name}")
         st.session_state.candidates = storage.load_all_candidates()
-        st.session_state.vector_store.index_candidates(st.session_state.candidates)
+        safe_index_candidates(st.session_state.candidates)
         st.success(f"✅ Processed and stored {len(new_candidates)} resume(s).")
 
     if load_samples_clicked:
@@ -229,7 +238,7 @@ with tabs[0]:
                 c = extract_candidate_info(os.path.join(sample_dir, f), file_name=f)
                 storage.save_candidate(c)
             st.session_state.candidates = storage.load_all_candidates()
-            st.session_state.vector_store.index_candidates(st.session_state.candidates)
+            safe_index_candidates(st.session_state.candidates)
             st.success(f"✅ Loaded {len(files)} sample resumes.")
         else:
             st.error("Sample resumes folder not found.")
@@ -467,7 +476,7 @@ with tabs[6]:
         st.info("No candidates indexed yet. Upload resumes first.")
     else:
         if st.button("🔁 (Re)build Vector Index"):
-            st.session_state.vector_store.index_candidates(st.session_state.candidates)
+            safe_index_candidates(st.session_state.candidates)
             st.success("Vector index rebuilt.")
 
         query = st.text_input("Search query", placeholder="e.g. candidate with cloud and automation experience")
