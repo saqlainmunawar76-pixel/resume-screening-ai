@@ -28,7 +28,7 @@ evaluation criteria for the task (Documentation and Explainability — 10%).
                                             │
               ┌─────────────────────────────┼─────────────────────────────┐
               ▼                             ▼                             ▼
-     ai_features.py (Gemini)      vector_store.py (Chroma)      clustering.py / multi_job.py
+     ai_features.py (Gemini)      vector_store.py (NumPy)      clustering.py / multi_job.py
      summaries, interview Qs,     semantic search over           candidate grouping,
      skill-gap, suggestions,      resume pool                    multi-job ranking
      chat assistant
@@ -136,7 +136,7 @@ with optional richer AI text on top.
 | AI Chat Assistant | `ai_features.py` | LLM with candidate-pool context injected into the prompt (RAG-lite) |
 | Resume Improvement Suggestions | `ai_features.py` | LLM + rule-based checklist (missing LinkedIn/GitHub/certs/etc.) |
 | Candidate Clustering | `clustering.py` | TF-IDF + KMeans, auto-labeled by top distinguishing terms per cluster |
-| Vector Search | `vector_store.py` | ChromaDB with self-computed TF-IDF embeddings (avoids requiring an internet-dependent model download) |
+| Vector Search | `vector_store.py` | Self-computed TF-IDF embeddings + NumPy cosine similarity, with on-disk persistence (no heavy vector-DB dependency, avoiding the deployment fragility those bring) |
 | Multi-Job Candidate Matching | `multi_job.py` | Runs the core matching engine once per job, then aggregates best-fit-per-candidate and top-candidates-per-job views |
 
 ## 7. Known Limitations

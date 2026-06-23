@@ -4,13 +4,8 @@ pypdf==6.4.0
 scikit-learn==1.8.0
 pandas
 numpy
-chromadb==1.5.9
 python-dotenv==1.1.1
 google-genai==2.9.0
-
-# Uncomment if deploying to a cloud platform that errors with a ChromaDB/
-# sqlite3 version mismatch (a known issue on some hosting platforms):
-# pysqlite3-binary==0.5.5
 
 # Optional: install this for richer semantic similarity (transformer embeddings)
 # instead of the built-in TF-IDF fallback. Requires internet access to
