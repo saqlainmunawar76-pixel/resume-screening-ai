@@ -1,0 +1,23 @@
+Job Title: AI/ML Engineer
+
+We are hiring an AI/ML Engineer to build intelligent, production-grade NLP and
+generative AI applications.
+
+Responsibilities:
+- Build and fine-tune NLP models for classification, summarization, and search
+- Develop RAG pipelines using LangChain and vector databases
+- Work with TensorFlow or PyTorch for model training
+- Deploy ML models into production services
+
+Required Skills:
+Python, Machine Learning, NLP, TensorFlow, PyTorch, LangChain
+
+Minimum 2 years of experience in applied machine learning required.
+
+Preferred Qualifications:
+- Experience with Vector Database / ChromaDB / Pinecone is preferred
+- Hugging Face Transformers experience is a plus
+- Generative AI project experience is an added advantage
+
+Education:
+Bachelor's or Master's degree in Computer Science, AI, or a related field.
